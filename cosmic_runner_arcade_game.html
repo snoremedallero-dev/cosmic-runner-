@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cosmic Runner 2D - Vibecoding Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background-color: #0b0d19;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        canvas {
+            display: block;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+            border-radius: 12px;
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.7), 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+        .glow-btn {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            transition: all 0.2s ease-in-out;
+        }
+        .glow-btn:hover {
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.8);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-white p-2 md:p-6 bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
+
+    <!-- Header / Info Bar -->
+    <div class="w-full max-w-4xl flex justify-between items-center mb-3 px-4">
+        <div>
+            <h1 class="text-xl md:text-3xl font-black font-orbitron tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-300">
+                COSMIC RUNNER
+            </h1>
+            <p class="text-xs md:text-sm text-cyan-300/70 font-semibold hidden sm:block">Vibecoding Arcade 2D</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-sound" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-cyan-500/30 text-cyan-400 transition-all">
+                🔊 Sonido: ON
+            </button>
+            <button id="btn-info" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-fuchsia-500/30 text-fuchsia-400 transition-all">
+                ❓ Instrucciones
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal del Juego -->
+    <div class="relative w-full max-w-4xl aspect-[16/9] flex items-center justify-center">
+        <!-- Canvas -->
+        <canvas id="gameCanvas" class="w-full h-full border border-cyan-500/30"></canvas>
+
+        <!-- UI Overlay: Pantalla de Inicio -->
+        <div id="ui-start" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center rounded-xl p-6 text-center z-10">
+            <div class="w-20 h-20 mb-4 animate-bounce">
+                <!-- Icono Astronauta SVG -->
+                <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_15px_rgba(0,240,255,0.8)]">
+                    <circle cx="50" cy="50" r="40" fill="#0f172a" stroke="#00f0ff" stroke-width="4"/>
+                    <ellipse cx="50" cy="45" rx="25" ry="20" fill="#00f0ff" opacity="0.8"/>
+                    <path d="M 30 75 Q 50 90 70 75" fill="none" stroke="#f0abfc" stroke-width="5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h2 class="text-3xl md:text-5xl font-black font-orbitron mb-2 text-cyan-300 tracking-wide glow-text">ESCAPE CÓSMICO</h2>
+            <p class="text-slate-300 text-sm md:text-base max-w-md mb-6">
+                Reclecta orbes de energía, esquiva meteoritos y drones cibernéticos, y aprovecha los power-ups en esta carrera infinita.
+            </p>
+            <button id="btn-start" class="glow-btn bg-gradient-to-r from-cyan-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-slate-950 font-black font-orbitron text-lg md:text-xl py-3 px-10 rounded-full cursor-pointer tracking-wider">
+                ¡JUGAR AHORA!
+            </button>
+        </div>
+
+        <!-- UI Overlay: Game Over -->
+        <div id="ui-gameover" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center rounded-xl p-6 text-center z-10">
+            <h2 class="text-3xl md:text-5xl font-black font-orbitron mb-2 text-rose-500 tracking-wide drop-shadow-[0_0_10px_rgba(244,63,94,0.6)]">
+                ¡MISIÓN FALLIDA!
+            </h2>
+            <p class="text-slate-400 text-sm mb-4">Haz chocado contra un peligro en el espacio.</p>
+            
+            <div class="bg-slate-900/90 border border-cyan-500/30 rounded-lg p-4 my-2 w-64 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">Puntaje Final:</span>
+                    <span id="stat-score" class="font-bold font-orbitron text-cyan-400">0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400">Orbes Recogidos:</span>
+                    <span id="stat-orbs" class="font-bold font-orbitron text-amber-400">0</span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-slate-800 pt-2">
+                    <span class="text-slate-400">Récord Máximo:</span>
+                    <span id="stat-highscore" class="font-bold font-orbitron text-fuchsia-400">0</span>
+                </div>
+            </div>
+
+            <button id="btn-restart" class="glow-btn mt-4 bg-gradient-to-r from-cyan-500 to-fuchsia-600 text-slate-950 font-black font-orbitron text-lg py-3 px-8 rounded-full cursor-pointer">
+                REINTENTAR
+            </button>
+        </div>
+
+        <!-- UI Overlay: Modal Instrucciones -->
+        <div id="ui-instructions" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-lg flex flex-col items-center justify-center rounded-xl p-6 text-center z-20">
+            <h3 class="text-2xl font-black font-orbitron text-cyan-400 mb-4">¿CÓMO JUGAR?</h3>
+            <div class="text-left text-sm text-slate-300 space-y-3 max-w-md mb-6">
+                <p>🔹 <strong>Controles:</strong> Usa <span class="text-cyan-400">ESPACIO / Flecha Arriba / W</span> para activar el Jetpack (propulsión), y las flechas <span class="text-cyan-400">IZQ / DER</span> para desplazarte.</p>
+                <p>🔹 <strong>Móviles:</strong> Toca los botones de control en pantalla o mantén pulsada la pantalla para elevarte.</p>
+                <p>🔹 <strong>Coleccionables:</strong> Recoge orbes amarillos (+50 pts) y diamantes cian (+150 pts).</p>
+                <p>🔹 <strong>Power-ups:</strong></p>
+                <ul class="list-disc list-inside ml-4 space-y-1 text-xs">
+                    <li><span class="text-cyan-400">Escudo (Azul):</span> Te protege de 1 impacto.</li>
+                    <li><span class="text-amber-400">Imán (Amarillo):</span> Atrae orbes cercanos hacia ti.</li>
+                    <li><span class="text-fuchsia-400">Multiplicador x2 (Violeta):</span> Duplica tus puntos por tiempo limitado.</li>
+                </ul>
+            </div>
+            <button id="btn-close-info" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg border border-slate-600">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <!-- Controles Táctiles Integrados para Dispositivos Móviles -->
+    <div id="touch-controls" class="w-full max-w-4xl flex justify-between items-center mt-3 px-2 md:hidden">
+        <div class="flex gap-2">
+            <button id="btn-left" class="w-16 h-16 bg-slate-800/80 border border-cyan-500/50 rounded-full flex items-center justify-center active:bg-cyan-500/40 text-2xl">⬅️</button>
+            <button id="btn-right" class="w-16 h-16 bg-slate-800/80 border border-cyan-500/50 rounded-full flex items-center justify-center active:bg-cyan-500/40 text-2xl">➡️</button>
+        </div>
+        <div>
+            <button id="btn-jump" class="w-20 h-20 bg-gradient-to-br from-cyan-500 to-fuchsia-600 rounded-full flex items-center justify-center active:scale-95 text-white font-bold font-orbitron text-xs shadow-lg shadow-cyan-500/40">
+                JETPACK
+            </button>
+        </div>
+    </div>
+
+    <!-- Lógica del Juego en JS -->
+    <script>
+        // --- SINTETIZADOR DE AUDIO (Web Audio API) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playBeep(freq, type, duration, vol=0.1) {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+            jump() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.15);
+                } catch(e) {}
+            }
+            coin() { this.playBeep(880, 'triangle', 0.1, 0.2); }
+            powerup() {
+                if (!this.enabled || !this.ctx) return;
+                [300, 450, 600, 800].forEach((f, i) => {
+                    setTimeout(() => this.playBeep(f, 'sine', 0.08, 0.15), i * 60);
+                });
+            }
+            explosion() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.3);
+                } catch(e) {}
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // --- ENGINE & GAME LOGIC ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuración de resolución interna
+        const V_WIDTH = 960;
+        const V_HEIGHT = 540;
+        canvas.width = V_WIDTH;
+        canvas.height = V_HEIGHT;
+
+        // Estado Global
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        let score = 0;
+        let highscore = localStorage.getItem('cosmic_highscore') || 0;
+        let collectedOrbs = 0;
+        let gameSpeed = 5;
+        let distance = 0;
+        let frameCount = 0;
+
+        // Teclas
+        const keys = { up: false, left: false, right: false };
+
+        // Eventos Teclado
+        window.addEventListener('keydown', (e) => {
+            sound.init();
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+        });
+
+        // Controles táctiles
+        const setupTouchBtn = (id, keyName) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const start = (e) => { e.preventDefault(); sound.init(); keys[keyName] = true; };
+            const end = (e) => { e.preventDefault(); keys[keyName] = false; };
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('touchend', end);
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+        };
+        setupTouchBtn('btn-left', 'left');
+        setupTouchBtn('btn-right', 'right');
+        setupTouchBtn('btn-jump', 'up');
+
+        // Jugador (Astronauta con Jetpack)
+        const player = {
+            x: 100,
+            y: 300,
+            w: 40,
+            h: 55,
+            vy: 0,
+            vx: 0,
+            gravity: 0.4,
+            thrust: -0.85,
+            maxSpeedY: 8,
+            shield: false,
+            shieldTime: 0,
+            magnet: false,
+            magnetTime: 0,
+            doublePts: false,
+            doublePtsTime: 0,
+
+            reset() {
+                this.x = 100;
+                this.y = 300;
+                this.vy = 0;
+                this.vx = 0;
+                this.shield = false;
+                this.magnet = false;
+                this.doublePts = false;
+            },
+
+            update() {
+                // Movimiento horizontal
+                if (keys.left && this.x > 50) this.vx = -5;
+                else if (keys.right && this.x < V_WIDTH - 100) this.vx = 5;
+                else this.vx *= 0.8;
+
+                this.x += this.vx;
+
+                // Propulsión Jetpack
+                if (keys.up) {
+                    this.vy += this.thrust;
+                    if (frameCount % 3 === 0) {
+                        particles.push(new Particle(this.x + 5, this.y + this.h - 5, 'fire'));
+                    }
+                    if (frameCount % 10 === 0) sound.jump();
+                }
+
+                // Gravedad
+                this.vy += this.gravity;
+                this.y += this.vy;
+
+                // Limite suelo
+                const groundY = V_HEIGHT - 80 - this.h;
+                if (this.y > groundY) {
+                    this.y = groundY;
+                    this.vy = 0;
+                }
+                // Limite techo
+                if (this.y < 20) {
+                    this.y = 20;
+                    this.vy = 0;
+                }
+
+                // Actualizar timers de power-ups
+                if (this.shieldTime > 0) {
+                    this.shieldTime--;
+                    if (this.shieldTime <= 0) this.shield = false;
+                }
+                if (this.magnetTime > 0) {
+                    this.magnetTime--;
+                    if (this.magnetTime <= 0) this.magnet = false;
+                }
+                if (this.doublePtsTime > 0) {
+                    this.doublePtsTime--;
+                    if (this.doublePtsTime <= 0) this.doublePts = false;
+                }
+            },
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+
+                // Inclinación según velocidad vertical
+                const angle = Math.min(Math.max(this.vy * 0.03, -0.3), 0.3);
+                ctx.rotate(angle);
+
+                // Escudo
+                if (this.shield) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 38, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 240, 255, 0.25)';
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#00f0ff';
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // Cuerpo del astronauta (dibujo vectorial procedural)
+                // Jetpack
+                ctx.fillStyle = '#64748b';
+                ctx.fillRect(-22, -10, 10, 25);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-22, -14, 10, 4);
+
+                // Traje
+                ctx.fillStyle = '#f8fafc';
+                ctx.beginPath();
+                ctx.roundRect(-15, -22, 30, 44, 10);
+                ctx.fill();
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Casco Visor
+                ctx.fillStyle = '#0284c7';
+                ctx.beginPath();
+                ctx.roundRect(-5, -18, 18, 16, 6);
+                ctx.fill();
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(3, -12, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Detalle del pecho
+                ctx.fillStyle = '#f43f5e';
+                ctx.fillRect(-8, 0, 8, 5);
+                ctx.fillStyle = '#0ea5e9';
+                ctx.fillRect(2, 0, 8, 5);
+
+                // Pies
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(-12, 22, 10, 8);
+                ctx.fillRect(2, 22, 10, 8);
+
+                ctx.restore();
+            }
+        };
+
+        // --- SISTEMA DE PARALLAX Y ESCENARIO ---
+        const starsFar = Array.from({ length: 60 }, () => ({
+            x: Math.random() * V_WIDTH,
+            y: Math.random() * V_HEIGHT,
+            size: Math.random() * 1.5 + 0.5,
+            speed: 0.5
+        }));
+
+        const starsNear = Array.from({ length: 30 }, () => ({
+            x: Math.random() * V_WIDTH,
+            y: Math.random() * V_HEIGHT,
+            size: Math.random() * 2.5 + 1.5,
+            speed: 1.5
+        }));
+
+        function drawBackground() {
+            // Fondo Espacial con degradado
+            const grad = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+            grad.addColorStop(0, '#050714');
+            grad.addColorStop(1, '#110c2a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // Estrellas lejanas
+            ctx.fillStyle = '#ffffff88';
+            starsFar.forEach(s => {
+                s.x -= s.speed * (gameSpeed / 5);
+                if (s.x < 0) s.x = V_WIDTH;
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            });
+
+            // Estrellas cercanas (con brillo)
+            ctx.fillStyle = '#38bdf8';
+            starsNear.forEach(s => {
+                s.x -= s.speed * (gameSpeed / 5);
+                if (s.x < 0) s.x = V_WIDTH;
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            });
+
+            // Suelo Futurista Cyberpunk
+            const groundY = V_HEIGHT - 80;
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, groundY, V_WIDTH, 80);
+
+            // Línea de Neón Superior del Suelo
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(V_WIDTH, groundY);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Rejilla del Suelo animada
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+            ctx.lineWidth = 1;
+            const gridOffset = (frameCount * gameSpeed) % 40;
+            for (let x = -gridOffset; x < V_WIDTH; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, groundY);
+                ctx.lineTo(x - 20, V_HEIGHT);
+                ctx.stroke();
+            }
+        }
+
+        // --- CLASE OBSTÁCULOS (Meteoritos y Drones) ---
+        class Obstacle {
+            constructor() {
+                this.type = Math.random() > 0.5 ? 'meteor' : 'drone';
+                this.x = V_WIDTH + 50;
+                this.w = this.type === 'meteor' ? 45 : 40;
+                this.h = this.w;
+                this.y = this.type === 'meteor'
+                    ? Math.random() * (V_HEIGHT - 180) + 40
+                    : V_HEIGHT - 80 - this.h - (Math.random() > 0.5 ? 80 : 0);
+                this.rot = 0;
+                this.rotSpeed = (Math.random() - 0.5) * 0.08;
+            }
+
+            update() {
+                this.x -= gameSpeed * 1.1;
+                this.rot += this.rotSpeed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+                ctx.rotate(this.rot);
+
+                if (this.type === 'meteor') {
+                    // Meteorito Rocoso con rastro
+                    ctx.fillStyle = '#78716c';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.w / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#44403c';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    // Cráteres
+                    ctx.fillStyle = '#292524';
+                    ctx.beginPath();
+                    ctx.arc(-8, -6, 5, 0, Math.PI * 2);
+                    ctx.arc(10, 8, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Drone Malvado cibernético
+                    ctx.fillStyle = '#e11d48';
+                    ctx.fillRect(-this.w / 2, -this.h / 2, this.w, this.h);
+                    ctx.fillStyle = '#fecdd3';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Antenas
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -this.h / 2);
+                    ctx.lineTo(-15, -this.h / 2 - 8);
+                    ctx.moveTo(10, -this.h / 2);
+                    ctx.lineTo(15, -this.h / 2 - 8);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- CLASE COLECCIONABLES Y POWER-UPS ---
+        class Item {
+            constructor() {
+                const rand = Math.random();
+                if (rand < 0.7) this.type = 'orb'; // 70% Orbe regular
+                else if (rand < 0.85) this.type = 'gem'; // 15% Gemas raras
+                else {
+                    // 15% Power-Up
+                    const pRand = Math.random();
+                    if (pRand < 0.35) this.type = 'power_shield';
+                    else if (pRand < 0.7) this.type = 'power_magnet';
+                    else this.type = 'power_double';
+                }
+
+                this.x = V_WIDTH + 40;
+                this.y = Math.random() * (V_HEIGHT - 220) + 60;
+                this.w = 26;
+                this.h = 26;
+                this.floatOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.x -= gameSpeed;
+                this.floatOffset += 0.05;
+
+                // Efecto Imán
+                if (player.magnet) {
+                    const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
+                    const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 220) {
+                        this.x += (dx / dist) * 7;
+                        this.y += (dy / dist) * 7;
+                    }
+                }
+            }
+
+            draw() {
+                const floatY = Math.sin(this.floatOffset) * 4;
+                ctx.save();
+                ctx.translate(this.x + this.w / 2, this.y + this.h / 2 + floatY);
+
+                if (this.type === 'orb') {
+                    // Orbe Dorado
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'gem') {
+                    // Diamante Cian
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.shadowColor = '#22d3ee';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -12);
+                    ctx.lineTo(10, 0);
+                    ctx.lineTo(0, 12);
+                    ctx.lineTo(-10, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Iconos de Power-Up
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+                    if (this.type === 'power_shield') {
+                        ctx.fillStyle = '#0284c7';
+                        ctx.shadowColor = '#38bdf8';
+                    } else if (this.type === 'power_magnet') {
+                        ctx.fillStyle = '#d97706';
+                        ctx.shadowColor = '#fbbf24';
+                    } else {
+                        ctx.fillStyle = '#c084fc';
+                        ctx.shadowColor = '#e879f9';
+                    }
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+
+                    // Símbolo central
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const symbol = this.type === 'power_shield' ? 'S' : (this.type === 'power_magnet' ? 'M' : '2X');
+                    ctx.fillText(symbol, 0, 0);
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- SISTEMA DE PARTÍCULAS ---
+        class Particle {
+            constructor(x, y, colorType) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 4 + 2;
+                this.colorType = colorType;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.04 + 0.02;
+
+                if (colorType === 'fire') {
+                    this.vx = -Math.random() * 3 - 1;
+                    this.vy = (Math.random() - 0.5) * 2;
+                }
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(this.life, 0);
+                if (this.colorType === 'fire') ctx.fillStyle = Math.random() > 0.5 ? '#f97316' : '#ef4444';
+                else if (this.colorType === 'gold') ctx.fillStyle = '#f59e0b';
+                else if (this.colorType === 'cyan') ctx.fillStyle = '#06b6d4';
+                else ctx.fillStyle = '#f43f5e';
+
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        // Listas Globales
+        let obstacles = [];
+        let items = [];
+        let particles = [];
+
+        // Spawn Timers
+        let nextObstacle = 0;
+        let nextItem = 0;
+
+        function spawnManager() {
+            // Obstáculos
+            if (frameCount > nextObstacle) {
+                obstacles.push(new Obstacle());
+                nextObstacle = frameCount + Math.floor(Math.random() * 60 + 80 - Math.min(gameSpeed * 3, 40));
+            }
+
+            // Items
+            if (frameCount > nextItem) {
+                items.push(new Item());
+                nextItem = frameCount + Math.floor(Math.random() * 50 + 40);
+            }
+        }
+
+        // Detección de Colisiones AABB
+        function checkCollision(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.w &&
+                rect1.x + rect1.w > rect2.x &&
+                rect1.y < rect2.y + rect2.h &&
+                rect1.y + rect1.h > rect2.y
+            );
+        }
+
+        function createExplosion(x, y, colorType) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, colorType));
+            }
+        }
+
+        // Reset del Juego
+        function resetGame() {
+            score = 0;
+            collectedOrbs = 0;
+            gameSpeed = 5;
+            distance = 0;
+            frameCount = 0;
+            obstacles = [];
+            items = [];
+            particles = [];
+            player.reset();
+        }
+
+        // Renderizado del HUD (Puntuación, Indicadores)
+        function drawHUD() {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Orbitron';
+            ctx.textAlign = 'left';
+
+            // Puntaje
+            ctx.fillText(`PUNTAJE: ${Math.floor(score)}`, 20, 35);
+
+            // Orbes
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText(`ORBES: ${collectedOrbs}`, 200, 35);
+
+            // Velocidad
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText(`VELOCIDAD: ${(gameSpeed).toFixed(1)}x`, 340, 35);
+
+            // Indicadores de Power-ups Activos
+            let pX = V_WIDTH - 150;
+            if (player.shield) {
+                ctx.fillStyle = '#00f0ff';
+                ctx.fillText(`🛡️ ESCUDO`, pX, 35);
+            } else if (player.doublePts) {
+                ctx.fillStyle = '#e879f9';
+                ctx.fillText(`⚡ 2X PTS`, pX, 35);
+            } else if (player.magnet) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(`🧲 IMÁN`, pX, 35);
+            }
+        }
+
+        // Loop Principal de Juego
+        function gameLoop() {
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // 1. Dibujar Fondo
+            drawBackground();
+
+            if (gameState === 'PLAYING') {
+                frameCount++;
+                gameSpeed += 0.0008; // Incremento progresivo de velocidad
+                distance += gameSpeed;
+                score += (player.doublePts ? 0.2 : 0.1);
+
+                // Actualizar Jugador
+                player.update();
+                player.draw();
+
+                // Spawns
+                spawnManager();
+
+                // Actualizar y Dibujar Obstáculos
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obs = obstacles[i];
+                    obs.update();
+                    obs.draw();
+
+                    // Colisión con Jugador
+                    if (checkCollision(player, obs)) {
+                        if (player.shield) {
+                            // Destruir obstáculo sin perder vida
+                            sound.explosion();
+                            createExplosion(obs.x, obs.y, 'cyan');
+                            player.shield = false;
+                            player.shieldTime = 0;
+                            obstacles.splice(i, 1);
+                        } else {
+                            // Game Over
+                            sound.explosion();
+                            createExplosion(player.x, player.y, 'red');
+                            endGame();
+                            break;
+                        }
+                    }
+
+                    // Remover fuera de pantalla
+                    if (obs.x < -60) obstacles.splice(i, 1);
+                }
+
+                // Actualizar y Dibujar Items
+                for (let i = items.length - 1; i >= 0; i--) {
+                    const it = items[i];
+                    it.update();
+                    it.draw();
+
+                    // Colisión con Jugador
+                    if (checkCollision(player, it)) {
+                        if (it.type === 'orb') {
+                            sound.coin();
+                            score += (player.doublePts ? 100 : 50);
+                            collectedOrbs++;
+                            createExplosion(it.x, it.y, 'gold');
+                        } else if (it.type === 'gem') {
+                            sound.coin();
+                            score += (player.doublePts ? 300 : 150);
+                            collectedOrbs += 3;
+                            createExplosion(it.x, it.y, 'cyan');
+                        } else if (it.type === 'power_shield') {
+                            sound.powerup();
+                            player.shield = true;
+                            player.shieldTime = 400; // ~6.5 segundos
+                        } else if (it.type === 'power_magnet') {
+                            sound.powerup();
+                            player.magnet = true;
+                            player.magnetTime = 450;
+                        } else if (it.type === 'power_double') {
+                            sound.powerup();
+                            player.doublePts = true;
+                            player.doublePtsTime = 400;
+                        }
+                        items.splice(i, 1);
+                    } else if (it.x < -40) {
+                        items.splice(i, 1);
+                    }
+                }
+
+                // Partículas
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update();
+                    p.draw();
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                // HUD
+                drawHUD();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Finalizar Misión (Game Over)
+        function endGame() {
+            gameState = 'GAMEOVER';
+            const finalScore = Math.floor(score);
+            if (finalScore > highscore) {
+                highscore = finalScore;
+                localStorage.setItem('cosmic_highscore', highscore);
+            }
+
+            document.getElementById('stat-score').innerText = finalScore;
+            document.getElementById('stat-orbs').innerText = collectedOrbs;
+            document.getElementById('stat-highscore').innerText = highscore;
+
+            document.getElementById('ui-gameover').classList.remove('hidden');
+        }
+
+        // --- MANEJADORES DE INTERFAZ ---
+        document.getElementById('btn-start').addEventListener('click', () => {
+            sound.init();
+            document.getElementById('ui-start').classList.add('hidden');
+            resetGame();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            document.getElementById('ui-gameover').classList.add('hidden');
+            resetGame();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', (e) => {
+            sound.enabled = !sound.enabled;
+            e.target.innerText = sound.enabled ? '🔊 Sonido: ON' : '🔇 Sonido: OFF';
+        });
+
+        const uiInstructions = document.getElementById('ui-instructions');
+        document.getElementById('btn-info').addEventListener('click', () => {
+            uiInstructions.classList.remove('hidden');
+        });
+        document.getElementById('btn-close-info').addEventListener('click', () => {
+            uiInstructions.classList.add('hidden');
+        });
+
+        // Iniciar Render en Window Load
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
